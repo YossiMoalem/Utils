@@ -1,38 +1,47 @@
 #include "SelectableBlockingQueue.h"
 #include <assert.h>
 #include <thread>
+#include <boost/circular_buffer.hpp>
 
-void test_flush()
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_flush( QueueCtorArgs ... queueCtorArgs )
 {
     // Run this under valgrind to see that all allocations are released.
-    SelectableBlockingQueue< int > intQueue;
-    SelectableBlockingQueue< int * > intPtrQueue;
-    SelectableBlockingQueue< int * > intPtrQueueCustomDeleter( [] ( int * ptr ) { 
-            delete ptr; } );
+    SelectableBlockingQueue< int, QueueType > intQueue { queueCtorArgs ...  };
+    SelectableBlockingQueue< int *, QueueType > intPtrQueue { queueCtorArgs ... };
+    SelectableBlockingQueue< int *, QueueType > intPtrQueueCustomDeleter{ queueCtorArgs ... };
 
-    intQueue.push( 1 );
-    intQueue.push( 2 );
-    intQueue.push( 3 );
+    intPtrQueueCustomDeleter.setDisposeMethod( [] ( int * ptr ) {
+        delete ptr ; } );
 
-    intPtrQueue.push( new int  );
-    intPtrQueue.push( new int  );
-    intPtrQueue.push( new int  );
+    intQueue.pushBack( 1 );
+    intQueue.pushBack( 2 );
+    intQueue.pushBack( 3 );
 
-    intPtrQueueCustomDeleter.push( new int  );
-    intPtrQueueCustomDeleter.push( new int  );
-    intPtrQueueCustomDeleter.push( new int  );
+    intPtrQueue.pushBack( new int  );
+    intPtrQueue.pushBack( new int  );
+    intPtrQueue.pushBack( new int  );
+
+    intPtrQueueCustomDeleter.pushBack( new int  );
+    intPtrQueueCustomDeleter.pushBack( new int  );
+    intPtrQueueCustomDeleter.pushBack( new int  );
 
     intQueue.flush();
     intPtrQueue.flush();
     intPtrQueueCustomDeleter.flush();
 }
 
-void test_pushPop()
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_pushPop( QueueCtorArgs ... queueCtorArgs )
 {
-    SelectableBlockingQueue< int > intQueue;
-    intQueue.push( 1 );
-    intQueue.push( 2 );
-    intQueue.push( 3 );
+    SelectableBlockingQueue< int, QueueType > intQueue{ queueCtorArgs ... }  ;
+    intQueue.pushBack( 1 );
+    intQueue.pushBack( 2 );
+    intQueue.pushBack( 3 );
 
     int i1;
     int i2;
@@ -46,22 +55,28 @@ void test_pushPop()
     assert ( i3 == 3 );
 } 
 
-void test_tryPop()
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_tryPop( QueueCtorArgs ... queueCtorArgs )
 {
-    SelectableBlockingQueue< int > intQueue;
+    SelectableBlockingQueue< int, QueueType > intQueue { queueCtorArgs ... };
 
     int i1 = 1;
     assert( intQueue.try_pop( i1 ) == false && i1 == 1 );
     assert( intQueue.try_pop( i1 ) == false && i1 == 1 );
     assert( intQueue.try_pop( i1 ) == false && i1 == 1 );
 
-    intQueue.push( 2 );
+    intQueue.pushBack( 2 );
     assert( intQueue.try_pop( i1 ) == true && i1 == 2 );
 }
 
-void test_pushFrontPop()
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_pushFrontPop( QueueCtorArgs ... queueCtorArgs )
 {
-    SelectableBlockingQueue< int > intQueue;
+    SelectableBlockingQueue< int, QueueType > intQueue { queueCtorArgs ... };
     intQueue.pushFront( 1 );
     intQueue.pushFront( 2 );
     intQueue.pushFront( 3 );
@@ -79,11 +94,14 @@ void test_pushFrontPop()
 
 }
 
-void test_block()
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_block( QueueCtorArgs ... queueCtorArgs )
 {
-    SelectableBlockingQueue< int > intQueue;
+    SelectableBlockingQueue< int, QueueType > intQueue{ queueCtorArgs ... };
     std::thread t( [ & intQueue ] () { sleep( 1 );
-            intQueue.push( 1 );
+            intQueue.pushBack( 1 );
             } ) ;
     int i1 = 0;
     intQueue.pop( i1 );
@@ -91,16 +109,19 @@ void test_block()
     t.join();
 }
 
-void test_select()
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_select( QueueCtorArgs ... queueCtorArgs )
 {
-    SelectableBlockingQueue< int > intQueue;
+    SelectableBlockingQueue< int, QueueType > intQueue { queueCtorArgs ... };
     int queueEventFD = intQueue.getFD();
     fd_set readFdSet;
     FD_ZERO( & readFdSet );
     FD_SET( queueEventFD, & readFdSet );
 
     std::thread t( [ & intQueue ] () { sleep( 1 );
-            intQueue.push( 1 );
+            intQueue.pushBack( 1 );
             } ) ;
 
     int res = select( queueEventFD + 1 , & readFdSet, NULL, NULL, NULL );
@@ -113,13 +134,27 @@ void test_select()
     t.join();
 }
 
+#define TEST(Name) std::cout <<"Testing: "<< #Name <<std::endl; Name
+
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_all( QueueCtorArgs ... queueCtorArgs )
+{
+    TEST( test_flush )          < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_pushPop )        < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_tryPop )         < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_pushFrontPop )   < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_block )          < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_select )         < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+}
+
 int main()
 {
-    test_flush();
-    test_pushPop();
-    test_tryPop();
-    test_pushFrontPop();
-    test_block();
-    test_select();
-    test_select();
+    std::cout <<"Testing With std::deque"<<std::endl;
+    test_all< std::deque > ();
+    std::cout <<"Testing With Boost::circular_buffer"<<std::endl;
+    test_all< boost::circular_buffer > ( 10 );
+    SelectableBlockingQueue< int, std::deque> intQueue{}; 
+
 }

@@ -8,39 +8,35 @@
 #include <unistd.h>             /* read and write */
 #include <stdint.h>             /* Definition of uint64_t */
 #include <type_traits>
+#include <functional>
 
 template< typename DataType >
 using DisposeMethod = std::function< void ( DataType d )> ;
 
 namespace
 {
-
 template< typename DataType >
     typename std::enable_if < ! std::is_pointer < DataType >::value > ::type
     dealocate( DataType dt )
-{ }
+{ ; }
 
 template< typename DataType >
     typename std::enable_if < std::is_pointer < DataType >::value >::type
 dealocate( DataType dt )
-{
-    delete dt;
-}
+{ delete dt; }
 } //namespace
 
-template< typename DataType >
+template< typename DataType ,
+ template <class ... > class QueueType = std::deque >
 class SelectableBlockingQueue 
 {
  public:
-   SelectableBlockingQueue() :
-       SelectableBlockingQueue( [] ( DataType dt ) { dealocate< DataType > ( dt ) ; } )
-    {}
-
-   SelectableBlockingQueue( DisposeMethod< DataType > disposeMethod ):
-       _disposeMethod( disposeMethod ),
+ template< typename ... QueueCtorArgs >
+   SelectableBlockingQueue( QueueCtorArgs ... queueCtorArgs ):
+       _queue( queueCtorArgs ...  ),
+       _disposeMethod([] ( DataType dt ) { dealocate ( dt ); } ),
        _eventFD( eventfd( 0, EFD_SEMAPHORE ) )
     {}
-
    SelectableBlockingQueue( const SelectableBlockingQueue & ) = delete;
    SelectableBlockingQueue & operator = ( const SelectableBlockingQueue & ) = delete;
 
@@ -48,13 +44,18 @@ class SelectableBlockingQueue
    {
        this->flush();
    }
+    
+    void setDisposeMethod( DisposeMethod< DataType > disposeMethod )
+    {
+        _disposeMethod = disposeMethod;
+    }
 
    bool pushFront( const DataType & data )
    { 
        return _doPush ( data, true ); 
    }
 
-   bool push( const DataType & data )
+   bool pushBack( const DataType & data )
    { 
        return _doPush ( data, false ); 
    }
@@ -132,8 +133,8 @@ class SelectableBlockingQueue
  private:
    mutable std::mutex               _queueMutex;
    std::condition_variable_any      _queueEmptyCondition;
-   std::deque<DataType>             _queue;
+   QueueType< DataType >            _queue;
    DisposeMethod< DataType >        _disposeMethod;
-   int                             _eventFD;
+   int                              _eventFD;
 };
 #endif
