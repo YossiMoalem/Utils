@@ -9,6 +9,7 @@
 #include <stdint.h>             /* Definition of uint64_t */
 #include <type_traits>
 #include <functional>
+#include <iterator>
 
 template< typename DataType >
 using DisposeMethod = std::function< void ( DataType d )> ;
@@ -52,13 +53,30 @@ class SelectableBlockingQueue
 
    bool pushFront( const DataType & data )
    { 
+       std::unique_lock< std::mutex > lock(_queueMutex);
        return _doPush ( data, true ); 
+   }
+
+    template < typename Iterator >
+   bool pushFront(  const Iterator first, const Iterator last )
+   { 
+       std::unique_lock< std::mutex > lock(_queueMutex);
+       return _doPush ( first, last, true ); 
    }
 
    bool pushBack( const DataType & data )
    { 
+       std::unique_lock< std::mutex > lock(_queueMutex);
        return _doPush ( data, false ); 
    }
+    
+    template < typename Iterator >
+   bool pushBack(  const Iterator first, const Iterator last )
+   { 
+       std::unique_lock< std::mutex > lock(_queueMutex);
+       return _doPush ( first, last, false ); 
+   }
+
 
    int getFD() const
    {
@@ -100,14 +118,24 @@ class SelectableBlockingQueue
    }
 
  private:
+    template < typename Iterator >
+    bool _doPush( const Iterator first, const Iterator last, bool front )
+    {
+        Iterator currentItem = first;
+        while ( currentItem != last )
+        {
+            _doPush( * currentItem, front );
+            currentItem++;
+        }
+        return true;
+    }
+
    bool _doPush( const DataType & data, bool first )
    {
        if ( first )
        {
-           std::unique_lock< std::mutex > lock(_queueMutex);
            _queue.push_front( data );
        } else {
-           std::unique_lock< std::mutex > lock(_queueMutex);
            _queue.push_back( data );
        }
        uint64_t dummy = 1;

@@ -134,6 +134,44 @@ void test_select( QueueCtorArgs ... queueCtorArgs )
     t.join();
 }
 
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_addIterator(QueueCtorArgs ... queueCtorArgs )
+{
+    std::vector< int > originalVector { 1,2,3,4,5,6,7,8,9,0 };
+    std::vector< int > popedVector( originalVector.size() );
+    SelectableBlockingQueue< int, QueueType > intQueue { queueCtorArgs ...  };
+    intQueue.pushBack( originalVector.begin(), originalVector.end() );
+    for ( size_t i = 0; i < originalVector.size(); ++i )
+    {
+        intQueue.pop(  popedVector[ i ] );
+    }
+    for ( size_t i = 0; i < originalVector.size(); ++i )
+    {
+        assert ( originalVector[ i ] == popedVector[ i ] );
+    }
+}
+
+template< 
+ template <class ... > class QueueType,
+ typename ... QueueCtorArgs >
+void test_addFrontIterator(QueueCtorArgs ... queueCtorArgs )
+{
+    std::vector< int > originalVector { 1,2,3,4,5,6,7,8,9,0 };
+    std::vector< int > popedVector( originalVector.size() );
+    SelectableBlockingQueue< int, QueueType > intQueue { queueCtorArgs ...  };
+    intQueue.pushFront( originalVector.begin(), originalVector.end() );
+    for ( size_t i = 0; i < originalVector.size(); ++i )
+    {
+        intQueue.pop(  popedVector[ i ] );
+    }
+    for ( size_t i = 0; i < originalVector.size(); ++i )
+    {
+        assert ( originalVector[ i ] == popedVector[ originalVector.size() - i - 1 ] );
+    }
+}
+
 #define TEST(Name) std::cout <<"Testing: "<< #Name <<std::endl; Name
 
 template< 
@@ -147,6 +185,8 @@ void test_all( QueueCtorArgs ... queueCtorArgs )
     TEST( test_pushFrontPop )   < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
     TEST( test_block )          < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
     TEST( test_select )         < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_addIterator )    < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
+    TEST( test_addFrontIterator ) < QueueType, QueueCtorArgs ... >( queueCtorArgs ... );
 }
 
 int main()
