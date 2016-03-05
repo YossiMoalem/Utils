@@ -3,12 +3,16 @@
 
 #include <vector>
 #include <thread>
+#include <atomic>
 #include "SelectableBlockingQueue.h"
 
 class ThreadPool
 {
     public:
-    ThreadPool( size_t numberOfThreads ) :
+    ThreadPool( size_t numberOfThreads, 
+                std::function< void () > onIdleCallback = nullptr ) :
+    _workingWorkers( 0 ),
+    _onIdleCallback ( onIdleCallback ),
     _stop( false )
     {
         _workers.reserve( numberOfThreads );
@@ -21,7 +25,16 @@ class ThreadPool
                 {
                     std::function< void( ) > job;
                     _jobs.pop( job );
+                    if( _onIdleCallback )
+                        ++_workingWorkers;
                     job();
+                    if( _onIdleCallback )
+                    {
+                        --_workingWorkers;
+                        if ( _workingWorkers == 0 && _jobs.empty() )
+                            _onIdleCallback();
+                    }
+
                 }
             } ) ;
         }
@@ -52,6 +65,8 @@ class ThreadPool
     private:
     std::vector< std::thread >                              _workers;
     SelectableBlockingQueue< std::function < void () > >    _jobs;
+    std::atomic< int >                                      _workingWorkers;
+    std::function< void () >                                _onIdleCallback;
     bool                                                    _stop;
 };
 #endif
