@@ -36,13 +36,16 @@ class SelectableBlockingQueue
    SelectableBlockingQueue( QueueCtorArgs ... queueCtorArgs ):
        _queue( queueCtorArgs ...  ),
        _disposeMethod([] ( DataType dt ) { dealocate ( dt ); } ),
-       _eventFD( eventfd( 0, EFD_SEMAPHORE ) )
+       _eventFD( eventfd( 0, EFD_SEMAPHORE ) ),
+       _stop( false )
     {}
    SelectableBlockingQueue( const SelectableBlockingQueue & ) = delete;
    SelectableBlockingQueue & operator = ( const SelectableBlockingQueue & ) = delete;
 
    ~SelectableBlockingQueue()
    {
+       _stop = true;
+       _queueEmptyCondition.notify_all();
        this->flush();
    }
     
@@ -98,7 +101,7 @@ class SelectableBlockingQueue
            _doPop( d );
            _disposeMethod( d );
        }
-       _queueEmptyCondition.notify_all();
+       _queueEmptyCondition.notify_one();
    }
 
    bool try_pop( DataType & data )
@@ -107,14 +110,14 @@ class SelectableBlockingQueue
        return _doPop( data );
    }
 
-   void pop( DataType & data )
+   bool pop( DataType & data )
    {
        std::unique_lock< std::mutex > lock(_queueMutex);
-       while( _queue.empty() )
+       while( _queue.empty() && ! _stop )
        {
            _queueEmptyCondition.wait( _queueMutex );
        }
-       _doPop( data );
+       return _doPop( data );
    }
 
  private:
@@ -164,5 +167,6 @@ class SelectableBlockingQueue
    QueueType< DataType >            _queue;
    DisposeMethod< DataType >        _disposeMethod;
    int                              _eventFD;
+   bool                             _stop;
 };
 #endif

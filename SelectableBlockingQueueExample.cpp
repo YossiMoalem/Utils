@@ -46,9 +46,9 @@ void test_pushPop( QueueCtorArgs ... queueCtorArgs )
     int i1;
     int i2;
     int i3;
-    intQueue.pop( i1 );
-    intQueue.pop( i2 );
-    intQueue.pop( i3 );
+    assert ( intQueue.pop( i1 ) ) ;
+    assert ( intQueue.pop( i2 ) );
+    assert ( intQueue.pop( i3 ) );
 
     assert ( i1 == 1 );
     assert ( i2 == 2 );
@@ -84,9 +84,9 @@ void test_pushFrontPop( QueueCtorArgs ... queueCtorArgs )
     int i1;
     int i2;
     int i3;
-    intQueue.pop( i1 );
-    intQueue.pop( i2 );
-    intQueue.pop( i3 );
+    assert ( intQueue.pop( i1 ) );
+    assert ( intQueue.pop( i2 ) );
+    assert ( intQueue.pop( i3 ) );
 
     assert ( i1 == 3 );
     assert ( i2 == 2 );
@@ -104,7 +104,7 @@ void test_block( QueueCtorArgs ... queueCtorArgs )
             intQueue.pushBack( 1 );
             } ) ;
     int i1 = 0;
-    intQueue.pop( i1 );
+    assert ( intQueue.pop( i1 ) );
     assert( i1 = 1 ); 
     t.join();
 }
@@ -129,7 +129,7 @@ void test_select( QueueCtorArgs ... queueCtorArgs )
     assert( FD_ISSET( queueEventFD, & readFdSet ) );
 
     int i1 = 0;
-    intQueue.pop( i1 );
+    assert ( intQueue.pop( i1 ) );
     assert( i1 = 1 ); 
     t.join();
 }
@@ -145,7 +145,7 @@ void test_addIterator(QueueCtorArgs ... queueCtorArgs )
     intQueue.pushBack( originalVector.begin(), originalVector.end() );
     for ( size_t i = 0; i < originalVector.size(); ++i )
     {
-        intQueue.pop(  popedVector[ i ] );
+        assert( intQueue.pop(  popedVector[ i ] ) );
     }
     for ( size_t i = 0; i < originalVector.size(); ++i )
     {
@@ -164,7 +164,7 @@ void test_addFrontIterator(QueueCtorArgs ... queueCtorArgs )
     intQueue.pushFront( originalVector.begin(), originalVector.end() );
     for ( size_t i = 0; i < originalVector.size(); ++i )
     {
-        intQueue.pop(  popedVector[ i ] );
+        assert( intQueue.pop(  popedVector[ i ] ) );
     }
     for ( size_t i = 0; i < originalVector.size(); ++i )
     {
