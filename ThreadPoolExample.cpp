@@ -4,7 +4,29 @@
 #include <assert.h>
 
 
-void verysimpleUsage()
+void test( )
+{int i  = 1;
+    std::stringstream ss;
+    ss <<"Hi: " << i <<std::endl;
+    std::cout <<ss.str();
+    sleep(1);
+    ss <<"Bye: " << i << std::endl ;
+    std::cout <<ss.str();
+
+}
+void verysimpleUsage_function()
+{
+    ThreadPool threadPool( 4 );
+    for ( int i = 0; i < 10; ++i )
+        threadPool.addJob ( &test );
+
+    std::stringstream ss;
+    ss <<"Done" <<std::endl;
+    std::cout <<ss.str();
+    sleep( 5 );
+}
+
+void verysimpleUsage_lambda()
 {
     ThreadPool threadPool( 4 );
     for ( int i = 0; i < 10; ++i )
@@ -65,9 +87,38 @@ void test_onIdleCallback()
     assert ( callbackCalled );
 }
 
+void test_addWorkAfterFirstLoadIsDone()
+{
+    const size_t numberOfJobs = 10;
+    std::vector< int > ind ( numberOfJobs, 0 );
+    std::vector< std::function< void () > > work ( numberOfJobs );
+    for( size_t i = 0; i < numberOfJobs; ++i )
+    {
+        work.emplace_back( [ i, & ind ] () { ind [ i ] ++ ; } );
+    }
+
+    int callbackCounter = 0;
+    ThreadPool threadPool( 4, [ & callbackCounter, & ind, &work, &threadPool ]
+    ()
+    {
+        if ( callbackCounter < 10 )
+        {
+            for ( size_t i = 0; i < numberOfJobs; ++i )
+            {
+                assert ( ind[ i ] ++ == callbackCounter );
+            }
+            threadPool.addJob( work.begin(), work.end() );
+        }
+    } ) ;
+    threadPool.addJob( work.begin(), work.end() );
+    sleep( 5 );
+}
+
 int main()
 {
-    //verysimpleUsage();
+    verysimpleUsage_lambda();
+    verysimpleUsage_function();
     test_allJobsAreDone();
     test_onIdleCallback();
+    test_addWorkAfterFirstLoadIsDone();
 }

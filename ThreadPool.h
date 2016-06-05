@@ -24,21 +24,26 @@ class ThreadPool
                 while ( ! _stop )
                 {
                     std::function< void( ) > job;
-                    _jobs.pop( job );
-                    if( _onIdleCallback )
-                        ++_workingWorkers;
-                    job();
-                    if( _onIdleCallback )
+                    if ( _jobs.pop( job ) )
                     {
-                        --_workingWorkers;
-                        if ( _workingWorkers == 0 && _jobs.empty() )
-                            _onIdleCallback();
-                    }
+                        if( _onIdleCallback )
+                            ++_workingWorkers;
+                        job();
+                        if( _onIdleCallback )
+                        {
+                            --_workingWorkers;
+                            if ( _workingWorkers == 0 && _jobs.empty() )
+                                _onIdleCallback();
+                        }
 
+                    }
                 }
             } ) ;
         }
     }
+
+    ThreadPool( const ThreadPool & ) = delete;
+    ThreadPool&  operator= (const ThreadPool& ) = delete;
 
     ~ThreadPool()
     {
@@ -58,7 +63,8 @@ class ThreadPool
         typename ... FunctionArguments >
     void addJob( Function && function, FunctionArguments ... functionArguments )
     {
-        auto job = std::function< void () > ( std::bind ( function, functionArguments ... ) );
+        auto job = std::function< void () > ( std::bind ( std::forward< Function > ( function ), 
+        std::forward< FunctionArguments > ( functionArguments ) ... ) );
         _jobs.pushBack( job );
     }
 
