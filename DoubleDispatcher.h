@@ -2,16 +2,17 @@
 #define DOUBLE_DISPATCHER_IMPL
 
 #include <type_traits>
+#include "typelist.h"
 
-template< typename Executor, typename ... Ts >
-class DynamicDispatcher;
+template< typename Executor, typename BaseClass, typename ... Ts >
+class DynamicDispatcherImpl;
 
 template < typename Executor,
     typename BaseClass,
     typename Class,
     typename ... Classes
     >
-class DynamicDispatcher< Executor, BaseClass, Class, Classes ... >
+class DynamicDispatcherImpl < Executor, BaseClass, std::tuple< Class, Classes ... > >
 {
     public:
     static auto dispatch( Executor * e, BaseClass* p1 ) ->
@@ -21,7 +22,7 @@ class DynamicDispatcher< Executor, BaseClass, Class, Classes ... >
         {
             return (*e)( t1 );
         } else {
-            return DynamicDispatcher< Executor, BaseClass, Classes ... >::dispatch( e, p1 );
+            return DynamicDispatcherImpl< Executor, BaseClass, std::tuple< Classes ... > >::dispatch( e, p1 );
         }
     }
 };
@@ -30,7 +31,7 @@ class DynamicDispatcher< Executor, BaseClass, Class, Classes ... >
 template< typename Executor, 
     typename BaseClass, 
     typename LastClass >
-class DynamicDispatcher< Executor, BaseClass, LastClass >
+class DynamicDispatcherImpl < Executor, BaseClass, std::tuple< LastClass > >
 {
     public:
     static auto dispatch( Executor * e, BaseClass* p1 ) ->
@@ -42,6 +43,20 @@ class DynamicDispatcher< Executor, BaseClass, LastClass >
         } else {
             throw 1;
         }
+    }
+};
+
+
+
+template< typename Executor, typename BaseClass, typename t1, typename ... Ts >
+class DynamicDispatcher
+{
+    public:
+    static auto dispatch( Executor * e, BaseClass* p1 ) ->
+        decltype( std::declval< Executor >().operator()( static_cast< t1* > ( p1 ) ) )
+        {
+            typedef std::tuple< t1, Ts ... > AllClasses;
+            DynamicDispatcherImpl< Executor, BaseClass, AllClasses > ::dispatch( e, p1 );
     }
 };
 #endif
