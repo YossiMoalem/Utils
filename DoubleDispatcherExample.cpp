@@ -1,9 +1,19 @@
 #include "DoubleDispatcher.h"
+#include <assert.h>
 
-#include <iostream>
 class Shape { public: virtual ~Shape () {} };
 class Circle : public Shape {};
 class Rectangle : public Shape {};
+
+static const std::string SimpleCircleDrawer     = "SimpleCircleDrawer";
+static const std::string SimpleRectangleDrawer  = "SimpleRectangleDrawer";
+static const std::string FancyCircleDrawer      = "FancyCircleDrawer";
+static const std::string FancyiRactangleDrawer  = "FancyiRactangleDrawer";
+
+static constexpr int SimpleCircleCalculate      = 1;
+static constexpr int SimpleRectangleCalculate   = 2;
+static constexpr int FancyCircleCalculate       = 3;
+static constexpr int FancyiRactangleCalculate   = 4;
 
 class CalculateInterface
 {
@@ -15,8 +25,8 @@ class CalculateInterface
 class DrawerInterface
 {
  public:
-   virtual void operator()( const Circle * ) = 0;
-   virtual void operator()( const Rectangle * ) = 0;
+   virtual const std::string & operator()( const Circle * ) = 0;
+   virtual const std::string & operator()( const Rectangle * ) = 0;
 };
 
 class Simple
@@ -24,62 +34,61 @@ class Simple
     class Drawer : public DrawerInterface
     {
      public:
-       void operator()( const Circle * )
-       { std::cout <<"Draw Ciecle" <<std::endl; }
-       void operator()( const Rectangle * )
-       { std::cout <<"Draw Rectangle" <<std::endl; }
+       const std::string & operator()( const Circle * )
+       { return SimpleCircleDrawer; }
+       const std::string & operator()( const Rectangle * )
+       { return SimpleRectangleDrawer; }
     };
     class Calculate : public CalculateInterface
     {
-        int operator()( const Circle * )
-        { std::cout <<"Calculating Cicle" <<std::endl; }
+       int operator()( const Circle * )
+        { return SimpleCircleCalculate; }
        int operator()( const Rectangle * )
-       { std::cout <<"Calculating Rectangle" <<std::endl; }
+       { return SimpleRectangleCalculate; }
     };
     public:
-    Drawer d;
-    Calculate c;
+    Drawer drawer;
+    Calculate calculate;
 };
 class Fancy
 {
     class Drawer : public DrawerInterface
     {
      public:
-       void operator()( const Circle * )
-       { std::cout <<"Draw Fancy Ciecle" <<std::endl; }
-       void operator()( const Rectangle * )
-       { std::cout <<"Draw Fancy Rectangle" <<std::endl; }
+       const std::string & operator()( const Circle * )
+       { return FancyCircleDrawer; }
+       const std::string & operator()( const Rectangle * )
+       { return FancyiRactangleDrawer; }
     };
     class Calculate : public CalculateInterface
     {
         int operator()( const Circle * )
-        { std::cout <<"Fancy Calculating Cicle" <<std::endl; }
+        { return FancyCircleCalculate; }
         int operator()( const Rectangle * )
-        { std::cout <<"Fancy Calculating Rectangle" <<std::endl; }
+        { return FancyiRactangleCalculate; }
     };
     public:
-    Drawer d;
-    Calculate c;
+    Drawer drawer;
+    Calculate calculate;
 };
-void testDraw( DrawerInterface * d, Shape * s )
+const std::string & testDraw( DrawerInterface * d, Shape * s )
 {
     DynamicDispatcher < DrawerInterface, Shape, Circle, Rectangle >::dispatch( d, s );
 }
-void testCalculate( CalculateInterface * c, Shape * s )
+
+int testCalculate( CalculateInterface * c, Shape * s )
 {
-    DynamicDispatcher < CalculateInterface, Shape, Circle, Rectangle >::dispatch( c, s );
+    return DynamicDispatcher < CalculateInterface, Shape, Circle, Rectangle >::dispatch( c, s );
 }
 
 int main ()
 {
-    Shape * s1 = new Circle;
-    Shape * s2 = new Rectangle;
-    Shape * s3 = new Shape;
-    Simple s;
-    Fancy f;
-    testDraw ( &s.d, s1 );
-    testDraw ( &f.d, s2 );
-    testCalculate( &f.c, s1 );
-    testCalculate( &s.c, s2 );
-
+    Shape * circle = new Circle;
+    Shape * rectangle = new Rectangle;
+    Simple simple;
+    Fancy fancy;
+    assert ( testDraw ( &simple.drawer, circle ) == SimpleCircleDrawer );
+    assert ( testDraw ( &fancy.drawer, rectangle ) == FancyiRactangleDrawer );
+    assert ( testCalculate( &fancy.calculate, circle ) == FancyCircleCalculate );
+    assert ( testCalculate( &simple.calculate, rectangle ) == SimpleRectangleCalculate );
 }
